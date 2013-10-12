@@ -1,0 +1,54 @@
+#!/usr/bin/env python
+
+from twisted.internet import reactor, protocol
+from twisted.internet.defer import Deferred
+from twisted.web import client
+from twisted.web.http_headers import Headers
+
+def sendHTTP(
+	method,
+	uri,
+	onResponse,
+	contentType = "application/json",
+	bodyProducer = None):
+	agent = client.Agent(reactor)
+	d = agent.request(
+		method,
+		uri,
+		Headers({'Content-Type': [contentType]}),
+		body)
+
+	def onShutdown(ignored):
+		reactor.stop()
+
+	d.addCallback(onResponse)
+	d.addBoth(onShutdown)
+
+	reactor.run()
+
+def sendHTTPSimple(
+	method,
+	uri,
+	onResponseBody,
+	contentType = "application/json",
+	bodyProducer = None):
+	def onResponse(response):
+		d = client.readBody(response)
+		d.addCallback(onResponseBody)
+		return d
+
+	sendHTTP(method, uri, onResponse, contentType, bodyProducer)
+
+#def sendHTTPWithReceiver(
+#	method,
+#	uri,
+#	receiver,
+#	contentType = "application/json",
+#	bodyProducer = None):
+#	def onResponse(response):
+#		finished = Deferred()
+#		response.deliverBody(response)
+#		d.addCallback(onResponseBody)
+#		return d
+#
+#	sendHTTP(method, uri, onResponse, contentType, bodyProducer)
