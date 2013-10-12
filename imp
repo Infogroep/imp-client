@@ -4,6 +4,22 @@ from twisted.internet import reactor, protocol
 from twisted.internet.defer import Deferred
 from twisted.web import client
 from twisted.web.http_headers import Headers
+from twisted.internet.defer import succeed
+
+class StringProducer(object):
+    def __init__(self, body):
+        self.body = body
+        self.length = len(body)
+
+    def startProducing(self, consumer):
+        consumer.write(self.body)
+        return succeed(None)
+
+    def pauseProducing(self):
+        pass
+
+    def stopProducing(self):
+        pass
 
 def sendHTTP(
 	method,
@@ -52,3 +68,5 @@ def sendHTTPSimple(
 #		return d
 #
 #	sendHTTP(method, uri, onResponse, contentType, bodyProducer)
+
+sendHTTPSimple("PUT","http://localhost:8880/control/volume",lambda body:print body,_,StringProducer(20))
