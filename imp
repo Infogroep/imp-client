@@ -75,5 +75,5 @@ def printMe(body):
 
 sendHTTPSimple(
 	"GET",
-	"http://localhost:8080/control/volume",
+	"http://localhost:8080/echo",
 	printMe)
