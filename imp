@@ -7,53 +7,52 @@ import routing
 import sys
 import json
 from colorama import Fore, Back, Style
+import site
+site.addsitedir("clint")
+from clint.textui import colored
 
 IMP_VERSION = "0.1.awesome"
 
 def printMe(body):
 	print body
 
-def header(txt):
-	return Style.BRIGHT + txt + Style.RESET_ALL
+def format_cols(imp,nr,title,artist,qby,separator = " "):
+	def col_size(desired,strin):
+		return desired + (len(str(strin)) - len(strin))
 
-def dejustify_header(normal_size):
-	return str(normal_size + len(Style.BRIGHT) + len(Style.RESET_ALL))
-
-def dejustify_imp(normal_size):
-	return str(normal_size + len(Fore.GREEN) + len(Style.RESET_ALL))
+	return "|{{0:{0}^{1}}}|{0}{{1:{0}>{2}}}{0}|{0}{{2:{0}<{3}}}{0}|{0}{{3:{0}<{4}}}{0}|{0}{{4:{0}<{5}}}{0}|".format(
+		separator,
+		col_size(37, imp),
+		col_size(3, nr),
+		col_size(30, title),
+		col_size(18, artist),
+		col_size(8, qby)
+	).format(imp, nr, title, artist, qby)
 
 def printPlaylist(body):
 	pl = json.loads(body)
-	print "|{0:*^37}|{1:*^5}|{2:*^32}|{3:*^20}|{4:*^10}|".format("","","","","")
-	print ("|{0:^37}| {1:>" + dejustify_header(3) + "} | {2:<" + dejustify_header(30) + "} | {3:<" + dejustify_header(18) + "} | {4:<" + dejustify_header(8) + "} |").format(
-		"imp version " + IMP_VERSION,
-		header("No."),
-		header("Title"),
-		header("Artist"),
-		header("Queuedby"))
-	print "|{0:*^37}|{1:*^5}|{2:*^32}|{3:*^20}|{4:*^10}|".format("","","","","")
+	print(format_cols("","","","","","*"))
+	print(format_cols(
+		colored.bright("imp version " + IMP_VERSION),
+		colored.bright("No."),
+		colored.bright("Title"),
+		colored.bright("Artist"),
+		colored.bright("Queuedby")))
+	print(format_cols("","","","","","*"))
 	i = 0	
 	for media in pl:
-		if i >= len(an_imp):
-			print "|{0:^37}| {1:>3} | {2:<30} | {3:<18} | {4:<8} |".format(
-				"",
-				i if i > 0 else str("> 0"),
-				media["info"]["title"],
-				media["info"]["artist"],
-				media["info"]["user"])
-		else:
-			print ("|{0:^" + dejustify_imp(37) + "}| {1:>3} | {2:<30} | {3:<18} | {4:<8} |").format(
-				Fore.GREEN + an_imp[i] + Style.RESET_ALL,
-				i if i > 0 else str("> 0"),
-				media["info"]["title"],
-				media["info"]["artist"],
-				media["info"]["user"])
+		print(format_cols(
+			colored.green(an_imp[i]) if i < len(an_imp) else "",
+			i if i > 0 else str("> 0"),
+			media["info"]["title"],
+			media["info"]["artist"],
+			media["info"]["user"]))
 		i += 1
 
 	if i < len(an_imp):
 		for j in range(i,len(an_imp)):
-			print ("|{0:^" + dejustify_imp(37) + "}|{1:^5}|{2:^32}|{3:^20}|{4:^10}|").format(Fore.GREEN + an_imp[j] + Style.RESET_ALL,"","","","")
-	print "|{0:*^37}|{1:*^5}|{2:*^32}|{3:*^20}|{4:*^10}|".format("","","","","")
+			print(format_cols(colored.green(an_imp[j]),"","","",""))
+	print(format_cols("","","","","","*"))
 
 
 

@@ -1,0 +1,3 @@
+[submodule "clint"]
+	path = clint
+	url = https://github.com/Infogroep/clint
