@@ -1,5 +1,6 @@
 #!/usr/bin/env python
 from twisted.web.client import FileBodyProducer
+from StringIO import StringIO
 from httprequests import *
 from animp import an_imp
 import routing
@@ -68,7 +69,10 @@ def add_upload(file):
 	f = open(file,"r")
 	sendHTTPSimple("POST", "/upload", discard, FileBodyProducer(f))
 
+def add_stream(uri):
+	sendHTTPSimple("POST", "/stream", discard, FileBodyProducer(StringIO(uri)))
 
+# Queue management
 def playlist():
 	sendHTTPSimple("GET", "/queue", printPlaylist)
 
@@ -102,10 +106,12 @@ r.history      ( lambda b: history() )
 
 # Enqueueing
 r.add          ( lambda b: add_youtube(b["id"]),
-                 [["youtube","yt","tube"],":id"],
+                 [["youtube","yt","y","tube"],":id"],
                  { "id": "[a-zA-Z0-9_-]+" } )
 r.add          ( lambda b: add_upload(b["file"]),
 	             [["upload","ul","u","uload"],":file"] )
+r.add          ( lambda b: add_stream(b["uri"]),
+	             [["stream","str","s"],":uri"] )
 
 # Current
 r.next         ( lambda b: next() )
