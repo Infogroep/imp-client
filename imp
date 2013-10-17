@@ -7,8 +7,8 @@ import routing
 import sys
 import json
 from colorama import Fore, Back, Style
-import site
-site.addsitedir("clint")
+import os
+sys.path.append(os.path.dirname(os.path.realpath(__file__)) + "/clint")
 from clint.textui import colored
 
 IMP_VERSION = "0.1.awesome"
