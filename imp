@@ -1,7 +1,7 @@
 #!/usr/bin/env python
 from twisted.web.client import FileBodyProducer
 from StringIO import StringIO
-from httprequests import *
+from httprequests import http, HTTPQueryRunner
 from animp import an_imp
 import routing
 import sys
@@ -62,64 +62,94 @@ def discard(body):
 
 # Temp queueing
 def add_youtube(vId):
-	sendHTTPSimple("ENQUEUE", "/youtube/video/" + vId,	discard)
+	http.sendSimple("ENQUEUE", "/youtube/video/" + vId, discard)
 
 def add_upload(file):
 	f = open(file,"r")
-	sendHTTPSimple("POST", "/upload", discard, FileBodyProducer(f))
+	http.sendSimple("POST", "/upload", discard, FileBodyProducer(f))
 
 def add_stream(uri):
-	sendHTTPSimple("POST", "/stream", discard, FileBodyProducer(StringIO(uri)))
+	http.sendSimple("POST", "/stream", discard, FileBodyProducer(StringIO(uri)))
 
 # Queue management
 def playlist():
-	sendHTTPSimple("GET", "/queue", printPlaylist)
+	http.sendSimple("GET", "/queue", printPlaylist)
 
 def playlist_raw():
-	sendHTTPSimple("GET", "/queue", printMe)
+	http.sendSimple("GET", "/queue", printMe)
 
 def flush():
-	sendHTTPSimple("DELETE", "/queue", discard)
+	http.sendSimple("DELETE", "/queue", discard)
 
 def history():
-	sendHTTPSimple("GET", "/history", printPlaylist)
+	http.sendSimple("GET", "/history", printPlaylist)
 
 # Current
 def next():
-	sendHTTPSimple("NEXT", "/control/current", printMe)
+	http.sendSimple("NEXT", "/control/current", printMe)
 def previous():
-	sendHTTPSimple("PREVIOUS", "/control/current", printMe)
+	http.sendSimple("PREVIOUS", "/control/current", printMe)
 def pause():
-	sendHTTPSimple("PAUSE", "/control/current", printMe)
+	http.sendSimple("PAUSE", "/control/current", printMe)
 def stop():
-	sendHTTPSimple("STOP", "/control/current", printMe)
+	http.sendSimple("STOP", "/control/current", printMe)
 def replay():
-	sendHTTPSimple("REPLAY", "/control/current", printMe)
+	http.sendSimple("REPLAY", "/control/current", printMe)
 
-r = routing.Router(sys.argv[1:])
-# Queue management
-r.match        ( lambda b: playlist(), [] )
-r.pl           ( lambda b: playlist_raw() )
-r.flush        ( lambda b: flush() )
-r.history      ( lambda b: history() )
+# Favs
+def favorite_add(type,name,rest):
+	http.sendSimple("POST", "/favorites", discard, FileBodyProducer(StringIO(json.dumps({
+		"type": type,
+		"name": name,
+		"options": rest
+	}))))
 
-# Enqueueing
-r.add          ( lambda b: add_youtube(b["id"]),
-                 [["youtube","yt","y","tube"],":id"],
-                 { "id": "[a-zA-Z0-9_-]+" } )
-r.add          ( lambda b: add_upload(b["file"]),
-	             [["upload","ul","u","uload"],":file"] )
-r.add          ( lambda b: add_stream(b["uri"]),
-	             [["stream","str","s"],":uri"] )
+# Volume
+def volume_get():
+	http.sendSimple("GET", "/control/volume", printMe)
 
-# Current
-r.next         ( lambda b: next() )
-r.previous     ( lambda b: previous() )
-r.pause        ( lambda b: pause() )
-r.stop         ( lambda b: stop() )
-r.replay       ( lambda b: replay() )
-
-r.finalize()
+def volume_set(volume):
+	http.sendSimple("PUT", "/control/volume", discard, FileBodyProducer(StringIO(str(volume))))
 
 
 
+def routeMain(argv):
+	r = routing.Router(argv)
+	# Queue management
+	r.match        ( lambda b: playlist(), [] )
+	r.pl           ( lambda b: playlist_raw() )
+	r.flush        ( lambda b: flush() )
+	r.history      ( lambda b: history() )
+
+	# Enqueueing
+	r.add          ( lambda b: add_youtube(b["id"]),
+	                 [["youtube","yt","y","tube"],":id"],
+	                 { "id": "[a-zA-Z0-9_-]+" } )
+	r.add          ( lambda b: add_upload(b["file"]),
+		             [["upload","ul","u","uload"],":file"] )
+	r.add          ( lambda b: add_stream(b["uri"]),
+		             [["stream","str","s"],":uri"] )
+
+	# Favs
+	r.fav          ( lambda b: favorite_add(b["type"],b["name"],b["..."]),
+					 ["add",":type",":name","..."],
+					 { "type": "stream|youtube" } )
+
+	# Current
+	r.next         ( lambda b: next() )
+	r.previous     ( lambda b: previous() )
+	r.pause        ( lambda b: pause() )
+	r.stop         ( lambda b: stop() )
+	r.replay       ( lambda b: replay() )
+
+	# Controls
+	r.volume       ( lambda b: volume_get() )
+	r.v            ( lambda b: volume_get() )
+	r.volume       ( lambda b: volume_set(int(b["val"])),
+	                 [":val"] )
+	r.v            ( lambda b: volume_set(int(b["val"])),
+	                 [":val"] )
+
+	r.finalize()
+
+routeMain(sys.argv[1:])

@@ -67,12 +67,26 @@ class Router:
 		@param options: A hashtable of options. Currently this only accepts regexp
 		constraints on captures.
 		"""
-		if len(self.argv) != len(rule):
+		ruleOpenEnded = False
+		openArgs = []
+		if len(rule) > 0 and rule[-1] == "...":
+			ruleOpenEnded = True
+			rule = rule[:-1]
+
+		if len(self.argv) < len(rule):
 			return
+
+		if len(self.argv) > len(rule):
+			if ruleOpenEnded:
+				openArgs = self.argv[len(rule):]
+				self.argv = self.argv[:len(rule)]
+			else:
+				return
 
 		bindings = self._match_rule(rule,self.argv,options)
 		if bindings != False:
 			self.routed = True
+			bindings["..."] = openArgs
 			to(bindings)
 
 	def __getattr__(self,attr):
