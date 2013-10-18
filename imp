@@ -13,51 +13,92 @@ from clint.textui import colored
 
 IMP_VERSION = "0.1.awesome"
 
+def discard(body):
+	pass
+
 def printMe(body):
 	print body
 
-def format_cols(imp,nr,title,artist,qby,separator = " "):
-	def col_size(desired,strin):
-		return desired + (len(str(strin)) - len(strin))
+def same(x):
+	return x
 
-	return "|{{0:{0}^{1}}}|{0}{{1:{0}>{2}}}{0}|{0}{{2:{0}<{3}}}{0}|{0}{{3:{0}<{4}}}{0}|{0}{{4:{0}<{5}}}{0}|".format(
-		separator,
-		col_size(37, imp),
-		col_size(3, nr),
-		col_size(30, title),
-		col_size(18, artist),
-		col_size(8, qby)
-	).format(imp, nr, title, artist, qby)
+class Column:
+	def __init__(self,size,justification = "left"):
+		self.size = size
+		self.justification = justification
+
+class Content:
+	def __init__(self,text,contype = "std",coloring = same):
+		self.coloring = coloring
+		self.text = text
+		self.type = contype
+
+class TableWriter:
+	def __init__(self,cols):
+		self.cols = cols
+
+	def format_cols(self,contents):
+		filler = contents[-1] if len(contents) > len(self.cols) else " "
+
+		def adjust_data_size(content,colsize):
+			if len(content.text) <= colsize:
+				return content.text
+			elif content.type == "uri":
+				return "..." + content.text[-(colsize - 3):]
+			else:
+				return content.text[:(colsize - 3)] + "..."
+
+		def col_size():
+			return desired + (len(str(con)) - len(con))
+
+		def justify(col,content):
+			if col.justification == "right":
+				return content.rjust(col.size, filler)
+			elif col.justification == "center":
+				return content.center(col.size, filler)
+			else:
+				return content.ljust(col.size, filler)
+
+		def format_column((col,content)):
+			return filler + content.coloring(justify(col,adjust_data_size(content, col.size))) + filler
+
+		return "|%s|" % "|".join(map(format_column, zip(self.cols,contents)))
+	
+	def printBorder(self):
+		print(self.format_cols(map(Content,[""] * len(self.cols)) + ["*"]))
+
+	def printHeader(self,*args):
+		print(self.format_cols(map(lambda text: Content(text, "std", colored.bright), args)))
+
+	def printBody(self,*args):
+		print(self.format_cols(args))
+
+	
 
 def printPlaylist(body):
 	pl = json.loads(body)
-	print(format_cols("","","","","","*"))
-	print(format_cols(
-		colored.bright("imp version " + IMP_VERSION),
-		colored.bright("No."),
-		colored.bright("Title"),
-		colored.bright("Artist"),
-		colored.bright("Queuedby")))
-	print(format_cols("","","","","","*"))
+
+	t = TableWriter([Column(37,"center"),Column(3,"right"),Column(30),Column(18),Column(8)])
+	t.printBorder()
+	t.printHeader("imp version " + IMP_VERSION, "No.", "Title", "Artist", "Queuedby")
+	t.printBorder()
 	i = 0	
 	for media in pl:
-		print(format_cols(
-			colored.green(an_imp[i]) if i < len(an_imp) else "",
-			i if i > 0 else str("> 0"),
-			media["info"]["title"],
-			media["info"]["artist"],
-			media["info"]["user"]))
+		t.printBody(
+			Content(an_imp[i], "std", colored.green) if i < len(an_imp) else Content(""),
+			Content(str(i)) if i > 0 else Content("> 0"),
+			Content(media["info"]["title"]) if "title" in media["info"] else Content(media["uri"],"uri") if media["uri"].find("tmp/cache/") != 0 else Content("Unknown"),
+			Content(media["info"]["artist"]) if "artist" in media["info"] else Content("Unknown"),
+			Content(media["info"]["user"]) if "user" in media["info"] else Content("John Doe"))
 		i += 1
 
 	if i < len(an_imp):
 		for j in range(i,len(an_imp)):
-			print(format_cols(colored.green(an_imp[j]),"","","",""))
-	print(format_cols("","","","","","*"))
+			t.printBody(Content(an_imp[j], "std", colored.green),Content(""),Content(""),Content(""),Content(""))
+	t.printBorder()
 
 
 
-def discard(body):
-	pass
 
 
 # Temp queueing
@@ -141,6 +182,7 @@ def routeMain(argv):
 	r.pause        ( lambda b: pause() )
 	r.stop         ( lambda b: stop() )
 	r.replay       ( lambda b: replay() )
+	r.play         ( lambda b: replay() )
 
 	# Controls
 	r.volume       ( lambda b: volume_get() )
