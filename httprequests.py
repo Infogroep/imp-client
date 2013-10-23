@@ -1,30 +1,29 @@
-from twisted.internet.defer import Deferred, succeed
-from twisted.web.client import Agent, readBody
+from twisted.internet import reactor
+from twisted.internet.defer import Deferred
+from twisted.web.client import Agent, readBody, HTTPConnectionPool
 from twisted.web.http_headers import Headers
-from zope.interface import implements
-from twisted.web.iweb import IBodyProducer
-from twisted.internet.task import react
 
 class HTTPQueryRunner:
+	pool = HTTPConnectionPool(reactor)
+
+	def __init__(self):
+		self.agent = Agent(reactor, pool=self.pool)
+
 	def send(
 		self,
 		method,
 		uri,
 		onResponse,
 		bodyProducer = None,
-		contentType = 'text/x-greeting'):
-		def main(reactor):
-			agent = Agent(reactor)
-			d = agent.request(
-				method,
-				"http://localhost:8080" + uri,
-				Headers({'Content-Type': [contentType]}),
-				bodyProducer)
+		contentType = 'text/x-greeting'):	
+		d = self.agent.request(
+			method,
+			"http://localhost:8080" + uri,
+			Headers({'Content-Type': [contentType]}),
+			bodyProducer)
 
-			d.addCallback(onResponse)
-			return d
-
-		react(main)
+		d.addCallback(onResponse)
+		return d
 
 	def sendSimple(
 		self,
@@ -38,7 +37,13 @@ class HTTPQueryRunner:
 			d.addCallback(onResponseBody)
 			return d
 
-		self.send(method, uri, onResponse, bodyProducer, contentType)
+		return self.send(method, uri, onResponse, bodyProducer, contentType)
+
+	def reactOn(self,d):
+		def onEnd(response):
+			reactor.stop()
+		d.addBoth(onEnd)
+		reactor.run()
 
 	#def sendHTTPWithReceiver(
 	#	method,

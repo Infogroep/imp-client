@@ -1,17 +1,13 @@
 #!/usr/bin/env python
-from twisted.web.client import FileBodyProducer
+from fileprogressadapter import FileProgressProducer
 from StringIO import StringIO
 from httprequests import http, HTTPQueryRunner
-from animp import an_imp
 import routing
 import sys
 import json
-from colorama import Fore, Back, Style
-import os
-sys.path.append(os.path.dirname(os.path.realpath(__file__)) + "/clint")
-from clint.textui import colored
+from playlistprint import printPlaylist
+from twisted.web.client import FileBodyProducer
 
-IMP_VERSION = "0.1.awesome"
 
 def discard(body):
 	pass
@@ -19,138 +15,82 @@ def discard(body):
 def printMe(body):
 	print body
 
-def same(x):
-	return x
-
-class Column:
-	def __init__(self,size,justification = "left"):
-		self.size = size
-		self.justification = justification
-
-class Content:
-	def __init__(self,text,contype = "std",coloring = same):
-		self.coloring = coloring
-		self.text = text
-		self.type = contype
-
-class TableWriter:
-	def __init__(self,cols):
-		self.cols = cols
-
-	def format_cols(self,contents):
-		filler = contents[-1] if len(contents) > len(self.cols) else " "
-
-		def adjust_data_size(content,colsize):
-			if len(content.text) <= colsize:
-				return content.text
-			elif content.type == "uri":
-				return "..." + content.text[-(colsize - 3):]
-			else:
-				return content.text[:(colsize - 3)] + "..."
-
-		def col_size():
-			return desired + (len(str(con)) - len(con))
-
-		def justify(col,content):
-			if col.justification == "right":
-				return content.rjust(col.size, filler)
-			elif col.justification == "center":
-				return content.center(col.size, filler)
-			else:
-				return content.ljust(col.size, filler)
-
-		def format_column((col,content)):
-			return filler + content.coloring(justify(col,adjust_data_size(content, col.size))) + filler
-
-		return "|%s|" % "|".join(map(format_column, zip(self.cols,contents)))
-	
-	def printBorder(self):
-		print(self.format_cols(map(Content,[""] * len(self.cols)) + ["*"]))
-
-	def printHeader(self,*args):
-		print(self.format_cols(map(lambda text: Content(text, "std", colored.bright), args)))
-
-	def printBody(self,*args):
-		print(self.format_cols(args))
-
-	
-
-def printPlaylist(body):
-	pl = json.loads(body)
-
-	t = TableWriter([Column(37,"center"),Column(3,"right"),Column(30),Column(18),Column(8)])
-	t.printBorder()
-	t.printHeader("imp version " + IMP_VERSION, "No.", "Title", "Artist", "Queuedby")
-	t.printBorder()
-	i = 0	
-	for media in pl:
-		t.printBody(
-			Content(an_imp[i], "std", colored.green) if i < len(an_imp) else Content(""),
-			Content(str(i)) if i > 0 else Content("> 0"),
-			Content(media["info"]["title"]) if "title" in media["info"] else Content(media["uri"],"uri") if media["uri"].find("tmp/cache/") != 0 else Content("Unknown"),
-			Content(media["info"]["artist"]) if "artist" in media["info"] else Content("Unknown"),
-			Content(media["info"]["user"]) if "user" in media["info"] else Content("John Doe"))
-		i += 1
-
-	if i < len(an_imp):
-		for j in range(i,len(an_imp)):
-			t.printBody(Content(an_imp[j], "std", colored.green),Content(""),Content(""),Content(""),Content(""))
-	t.printBorder()
-
-
-
-
+def printPlaylist_resp(body):
+	printPlaylist(json.loads(body))
 
 # Temp queueing
 def add_youtube(vId):
-	http.sendSimple("ENQUEUE", "/youtube/video/" + vId, discard)
+	http.reactOn(http.sendSimple("ENQUEUE", "/youtube/video/" + vId, discard))
 
-def add_upload(file):
-	f = open(file,"r")
-	http.sendSimple("POST", "/upload", discard, FileBodyProducer(f))
+def add_upload(files):
+	r = upload_files(files)
+	if r == None:
+		print("No files specified for upload.")
+	else:
+		http.reactOn(r)
+
+def onUploadProgress(fil):
+	def onUploadProgress_inner(progress):
+		sys.stdout.write("Uploading '%s'... %d%%\r" % (fil, (progress * 100)))
+		sys.stdout.flush()
+	return onUploadProgress_inner
+
+def upload_files(files):
+	if len(files) == 0:
+		return None
+
+	fil = files[0]
+	return http.send("POST", "/upload", upload_on_response(fil,files[1:]), FileProgressProducer(fil,onUploadProgress(fil)))
+
+def upload_on_response(curfile,files):
+	def on_response(response):
+		sys.stdout.write("Uploading '%s'... done.\n" % curfile)
+		sys.stdout.flush()
+		return upload_files(files)
+	return on_response
 
 def add_stream(uri):
-	http.sendSimple("POST", "/stream", discard, FileBodyProducer(StringIO(uri)))
+	http.reactOn(http.sendSimple("POST", "/stream", discard, FileBodyProducer(StringIO(uri))))
 
 # Queue management
 def playlist():
-	http.sendSimple("GET", "/queue", printPlaylist)
+	http.reactOn(http.sendSimple("GET", "/queue", printPlaylist_resp))
 
 def playlist_raw():
-	http.sendSimple("GET", "/queue", printMe)
+	http.reactOn(http.sendSimple("GET", "/queue", printMe))
 
 def flush():
-	http.sendSimple("DELETE", "/queue", discard)
+	http.reactOn(http.sendSimple("DELETE", "/queue", discard))
 
 def history():
-	http.sendSimple("GET", "/history", printPlaylist)
+	http.reactOn(http.sendSimple("GET", "/history", printPlaylist_resp))
 
 # Current
 def next():
-	http.sendSimple("NEXT", "/control/current", printMe)
+	http.reactOn(http.sendSimple("NEXT", "/control/current", printMe))
 def previous():
-	http.sendSimple("PREVIOUS", "/control/current", printMe)
+	http.reactOn(http.sendSimple("PREVIOUS", "/control/current", printMe))
 def pause():
-	http.sendSimple("PAUSE", "/control/current", printMe)
+	http.reactOn(http.sendSimple("PAUSE", "/control/current", printMe))
 def stop():
-	http.sendSimple("STOP", "/control/current", printMe)
+	http.reactOn(http.sendSimple("STOP", "/control/current", printMe))
 def replay():
-	http.sendSimple("REPLAY", "/control/current", printMe)
+	http.reactOn(http.sendSimple("REPLAY", "/control/current", printMe))
 
 # Favs
 def favorite_add(type,name,rest):
-	http.sendSimple("POST", "/favorites", discard, FileBodyProducer(StringIO(json.dumps({
+	http.reactOn(http.sendSimple("POST", "/favorites", discard, FileBodyProducer(StringIO(json.dumps({
 		"type": type,
 		"name": name,
 		"options": rest
-	}))))
+	})))))
 
 # Volume
 def volume_get():
-	http.sendSimple("GET", "/control/volume", printMe)
+	http.reactOn(http.sendSimple("GET", "/control/volume", printMe))
 
 def volume_set(volume):
-	http.sendSimple("PUT", "/control/volume", discard, FileBodyProducer(StringIO(str(volume))))
+	http.reactOn(http.sendSimple("PUT", "/control/volume", discard, FileBodyProducer(StringIO(str(volume)))))
 
 
 
@@ -166,8 +106,8 @@ def routeMain(argv):
 	r.add          ( lambda b: add_youtube(b["id"]),
 	                 [["youtube","yt","y","tube"],":id"],
 	                 { "id": "[a-zA-Z0-9_-]+" } )
-	r.add          ( lambda b: add_upload(b["file"]),
-		             [["upload","ul","u","uload"],":file"] )
+	r.add          ( lambda b: add_upload(b["..."]),
+		             [["upload","ul","u","uload"],"..."] )
 	r.add          ( lambda b: add_stream(b["uri"]),
 		             [["stream","str","s"],":uri"] )
 
@@ -177,6 +117,7 @@ def routeMain(argv):
 					 { "type": "stream|youtube" } )
 
 	# Current
+	r.skip         ( lambda b: next() )
 	r.next         ( lambda b: next() )
 	r.previous     ( lambda b: previous() )
 	r.pause        ( lambda b: pause() )
