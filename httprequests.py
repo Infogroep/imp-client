@@ -18,7 +18,7 @@ class HTTPQueryRunner:
 		contentType = 'text/x-greeting'):	
 		d = self.agent.request(
 			method,
-			"http://localhost:8080" + uri,
+			"http://mpgx.rave.org:8080" + uri,
 			Headers({'Content-Type': [contentType]}),
 			bodyProducer)
 

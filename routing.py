@@ -69,21 +69,23 @@ class Router:
 		"""
 		ruleOpenEnded = False
 		openArgs = []
+		args = self.argv
+
 		if len(rule) > 0 and rule[-1] == "...":
 			ruleOpenEnded = True
 			rule = rule[:-1]
 
-		if len(self.argv) < len(rule):
+		if len(args) < len(rule):
 			return
 
-		if len(self.argv) > len(rule):
+		if len(args) > len(rule):
 			if ruleOpenEnded:
-				openArgs = self.argv[len(rule):]
-				self.argv = self.argv[:len(rule)]
+				openArgs = args[len(rule):]
+				args = args[:len(rule)]
 			else:
 				return
 
-		bindings = self._match_rule(rule,self.argv,options)
+		bindings = self._match_rule(rule,args,options)
 		if bindings != False:
 			self.routed = True
 			bindings["..."] = openArgs
