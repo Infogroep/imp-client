@@ -1,0 +1,33 @@
+#!/bin/bash
+
+echo 'Installing wget'
+sudo apt-get install wget
+
+echo 'Installing python 2.7'
+sudo apt-get install python2.7 python2.7-dev libimage-exiftool-perl
+
+echo 'Checking if pip is installed'
+if ! pip-2.7 > /dev/null; then
+	tmpdir='/var/tmp/pipinstall'
+
+	echo 'No. Installing pip'
+	echo "Working dir: $tmpdir"
+	mkdir "$tmpdir"
+	pushd "$tmpdir"
+
+	wget https://bitbucket.org/pypa/setuptools/raw/bootstrap/ez_setup.py
+	sudo python2.7 ez_setup.py
+
+	wget https://raw.github.com/pypa/pip/master/contrib/get-pip.py
+	sudo python2.7 get-pip.py
+
+	popd
+	sudo rm -rf "$tmpdir"
+else
+	echo 'Yes. continuing'
+fi
+
+echo 'Installing twisted'
+sudo pip-2.7 install twisted
+
+
