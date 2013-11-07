@@ -4,7 +4,7 @@ echo 'Installing wget'
 sudo apt-get install wget
 
 echo 'Installing python 2.7'
-sudo apt-get install python2.7 python2.7-dev libimage-exiftool-perl
+sudo apt-get install python2.7 python2.7-dev
 
 echo 'Checking if pip is installed'
 if ! pip-2.7 > /dev/null; then
@@ -30,4 +30,6 @@ fi
 echo 'Installing twisted'
 sudo pip-2.7 install twisted
 
+echo 'Installing colorama'
+sudo pip-2.7 install colorama
 
