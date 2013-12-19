@@ -2,6 +2,7 @@ from twisted.internet import reactor
 from twisted.internet.defer import Deferred
 from twisted.web.client import Agent, readBody, HTTPConnectionPool
 from twisted.web.http_headers import Headers
+import getpass
 
 class HTTPQueryRunner:
 	pool = HTTPConnectionPool(reactor)
@@ -15,11 +16,11 @@ class HTTPQueryRunner:
 		uri,
 		onResponse,
 		bodyProducer = None,
-		contentType = 'text/x-greeting'):	
+		contentType = "application/json"):	
 		d = self.agent.request(
 			method,
 			"http://mpgx.rave.org:8080" + uri,
-			Headers({'Content-Type': [contentType]}),
+			Headers({'Content-Type': [contentType],'Imp-Requesting-User': [getpass.getuser()]}),
 			bodyProducer)
 
 		d.addCallback(onResponse)
