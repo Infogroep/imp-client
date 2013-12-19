@@ -7,6 +7,9 @@ import sys
 import json
 from playlistprint import printPlaylist
 from twisted.web.client import FileBodyProducer
+import re
+
+youtube_regex = "^([a-zA-Z0-9_-]+)$|^http://[^/]+youtube\.com/watch\?v=([a-zA-Z0-9_-]+)"
 
 
 def discard(body):
@@ -19,7 +22,9 @@ def printPlaylist_resp(body):
 	printPlaylist(json.loads(body))
 
 # Temp queueing
-def add_youtube(vId):
+def add_youtube(link):
+	m = re.compile(youtube_regex).match(link)
+	vId = m.group(1) or m.group(2)
 	http.reactOn(http.sendSimple("ENQUEUE", "/youtube/video/" + vId, discard))
 
 def add_upload(files):
@@ -103,9 +108,9 @@ def routeMain(argv):
 	r.history      ( lambda b: history() )
 
 	# Enqueueing
-	r.add          ( lambda b: add_youtube(b["id"]),
-	                 [["youtube","yt","y","tube"],":id"],
-	                 { "id": "[a-zA-Z0-9_-]+" } )
+	r.add          ( lambda b: add_youtube(b["link"]),
+	                 [["youtube","yt","y","tube"],":link"],
+	                 { "link": youtube_regex } )
 	r.add          ( lambda b: add_upload(b["..."]),
 		             [["upload","ul","u","uload"],"..."] )
 	r.add          ( lambda b: add_stream(b["uri"]),
