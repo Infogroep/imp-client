@@ -26,4 +26,4 @@ Installation on other systems
 * Install pip.
 * Use pip to install twisted:
   `sudo pip-2.7 install twisted`
-* Make a symlink in your bin folder: `ln -s "<path-to-imp-git-checkout>/imp" /usr/local/bin/imp`
+* Make a symlink in your bin folder: `sudo ln -s "<path-to-imp-git-checkout>/imp" /usr/local/bin/imp`
