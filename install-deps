@@ -30,6 +30,4 @@ fi
 echo 'Installing twisted'
 sudo pip-2.7 install twisted
 
-echo 'Installing colorama'
-sudo pip-2.7 install colorama
 
