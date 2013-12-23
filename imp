@@ -1,5 +1,6 @@
 #!/usr/bin/env python
 from fileprogressadapter import FileProgressProducer
+from filedownloadprotocol import FileDownloadProtocol
 from StringIO import StringIO
 from httprequests import http, HTTPQueryRunner
 import routing
@@ -8,6 +9,7 @@ import json
 from playlistprint import printPlaylist
 from twisted.web.client import FileBodyProducer
 import re
+import mimetypes
 
 youtube_regex = "^([a-zA-Z0-9_-]+)$|^http://[^/]+youtube\.com/watch\?v=([a-zA-Z0-9_-]+)"
 
@@ -25,7 +27,7 @@ def printPlaylist_resp(body):
 def add_youtube(link):
 	m = re.compile(youtube_regex).match(link)
 	vId = m.group(1) or m.group(2)
-	http.reactOn(http.sendSimple("ENQUEUE", "/youtube/video/" + vId, discard))
+	http.reactOn(http.sendSimpleCB("ENQUEUE", "/youtube/video/" + vId, discard))
 
 def add_upload(files):
 	r = upload_files(files)
@@ -45,7 +47,7 @@ def upload_files(files):
 		return None
 
 	fil = files[0]
-	return http.send("POST", "/upload", upload_on_response(fil,files[1:]), FileProgressProducer(fil,onUploadProgress(fil)))
+	return http.sendCB("POST", "/upload", upload_on_response(fil,files[1:]), FileProgressProducer(fil,onUploadProgress(fil)))
 
 def upload_on_response(curfile,files):
 	def on_response(response):
@@ -55,36 +57,65 @@ def upload_on_response(curfile,files):
 	return on_response
 
 def add_stream(uri):
-	http.reactOn(http.sendSimple("POST", "/stream", discard, FileBodyProducer(StringIO(uri))))
+	http.reactOn(http.sendSimpleCB("POST", "/stream", discard, FileBodyProducer(StringIO(uri))))
 
 # Queue management
 def playlist():
-	http.reactOn(http.sendSimple("GET", "/queue", printPlaylist_resp))
+	http.reactOn(http.sendSimpleCB("GET", "/queue", printPlaylist_resp))
 
 def playlist_raw():
-	http.reactOn(http.sendSimple("GET", "/queue", printMe))
+	http.reactOn(http.sendSimpleCB("GET", "/queue", printMe))
 
 def flush():
-	http.reactOn(http.sendSimple("DELETE", "/queue", discard))
+	http.reactOn(http.sendSimpleCB("DELETE", "/queue", discard))
 
 def history():
-	http.reactOn(http.sendSimple("GET", "/history", printPlaylist_resp))
+	http.reactOn(http.sendSimpleCB("GET", "/history", printPlaylist_resp))
+
+def history_raw():
+	http.reactOn(http.sendSimpleCB("GET", "/history", printMe))
+
+def leech(idx):
+	def onProgress(bytes):
+		sys.stdout.write("Downloading... %d kB\r" % (bytes / 1024))
+		sys.stdout.flush()
+
+	def requestMediaForIdx(body):
+		hist = json.loads(body)
+		media = hist[idx]
+		ext = "unknowntype"
+
+		if "mimetype" in media["info"]:
+			ext = mimetypes.guess_extension(media["info"]["mimetype"])
+		print "using extension %s" % ext
+
+		outfile = open("%s - %s%s" % (media["info"]["artist"],media["info"]["title"],ext), "w")
+		fdl = FileDownloadProtocol(outfile, onProgress)
+		return http.sendWithReceiver("DOWNLOAD","/queue/" + media["id"].encode('latin-1'),fdl)
+
+	def printDone(ignore):
+		sys.stdout.write("Downloading... done.                        \n")
+		sys.stdout.flush()
+
+	d = http.sendSimpleCB("GET", "/history", requestMediaForIdx)
+	d.addCallback(printDone)
+	http.reactOn(d)
 
 # Current
 def next():
-	http.reactOn(http.sendSimple("NEXT", "/control/current", printMe))
+	http.reactOn(http.sendSimpleCB("NEXT", "/control/current", printMe))
 def previous():
-	http.reactOn(http.sendSimple("PREVIOUS", "/control/current", printMe))
+	http.reactOn(http.sendSimpleCB("PREVIOUS", "/control/current", printMe))
 def pause():
-	http.reactOn(http.sendSimple("PAUSE", "/control/current", printMe))
+	http.reactOn(http.sendSimpleCB("PAUSE", "/control/current", printMe))
 def stop():
-	http.reactOn(http.sendSimple("STOP", "/control/current", printMe))
+	http.reactOn(http.sendSimpleCB("STOP", "/control/current", printMe))
 def replay():
-	http.reactOn(http.sendSimple("REPLAY", "/control/current", printMe))
+	http.reactOn(http.sendSimpleCB("REPLAY", "/control/current", printMe))
 
 # Favs
 def favorite_add(type,name,rest):
-	http.reactOn(http.sendSimple("POST", "/favorites", discard, FileBodyProducer(StringIO(json.dumps({
+	http.reactOn(http.sendSimpleCB("POST", "/favorites", discard, FileBodyProducer(StringIO(json.dumps({
 		"type": type,
 		"name": name,
 		"options": rest
@@ -92,10 +123,10 @@ def favorite_add(type,name,rest):
 
 # Volume
 def volume_get():
-	http.reactOn(http.sendSimple("GET", "/control/volume", printMe))
+	http.reactOn(http.sendSimpleCB("GET", "/control/volume", printMe))
 
 def volume_set(volume):
-	http.reactOn(http.sendSimple("PUT", "/control/volume", discard, FileBodyProducer(StringIO(str(volume)))))
+	http.reactOn(http.sendSimpleCB("PUT", "/control/volume", discard, FileBodyProducer(StringIO(str(volume)))))
 
 
 
@@ -106,6 +137,9 @@ def routeMain(argv):
 	r.pl           ( lambda b: playlist_raw() )
 	r.flush        ( lambda b: flush() )
 	r.history      ( lambda b: history() )
+	r.hl           ( lambda b: history_raw() )
+	r.leech        ( lambda b: leech(int(b["idx"])),
+	                 [":idx"] )
 
 	# Enqueueing
 	r.add          ( lambda b: add_youtube(b["link"]),

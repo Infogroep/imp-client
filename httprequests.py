@@ -14,31 +14,66 @@ class HTTPQueryRunner:
 		self,
 		method,
 		uri,
-		onResponse,
 		bodyProducer = None,
 		contentType = "application/json"):	
-		d = self.agent.request(
+		return self.agent.request(
 			method,
-			"http://mpgx.rave.org:8080" + uri,
+#			"http://mpgx.rave.org:8080" + uri,
+			"http://localhost:8080" + uri,
 			Headers({'Content-Type': [contentType],'Imp-Requesting-User': [getpass.getuser()]}),
 			bodyProducer)
 
+	def sendSimple(
+		self,
+		method,
+		uri,
+		bodyProducer = None,
+		contentType = "application/json"):
+
+		def onResponse(response):
+			return readBody(response)
+
+		responseDeferred = self.send(method, uri, bodyProducer, contentType)
+		responseDeferred.addCallback(onResponse)
+		return responseDeferred
+
+	def sendWithReceiver(
+		self,
+		method,
+		uri,
+		receiver,
+		bodyProducer = None,
+		contentType = "application/json"):
+		def onResponse(response):
+			response.deliverBody(receiver)
+			return receiver.notifyFinish()
+	
+		responseDeferred = self.send(method, uri, bodyProducer, contentType)
+		responseDeferred.addCallback(onResponse)
+		return responseDeferred
+
+
+	def sendCB(
+		self,
+		method,
+		uri,
+		onResponse,
+		bodyProducer = None,
+		contentType = "application/json"):	
+		d = self.send(method, uri, bodyProducer, contentType)
 		d.addCallback(onResponse)
 		return d
 
-	def sendSimple(
+	def sendSimpleCB(
 		self,
 		method,
 		uri,
 		onResponseBody,
 		bodyProducer = None,
 		contentType = "application/json"):
-		def onResponse(response):
-			d = readBody(response)
-			d.addCallback(onResponseBody)
-			return d
-
-		return self.send(method, uri, onResponse, bodyProducer, contentType)
+		d = self.sendSimple(method, uri, bodyProducer, contentType)
+		d.addCallback(onResponseBody)
+		return d
 
 	def reactOn(self,d):
 		def onEnd(response):
@@ -46,18 +81,5 @@ class HTTPQueryRunner:
 		d.addBoth(onEnd)
 		reactor.run()
 
-	#def sendHTTPWithReceiver(
-	#	method,
-	#	uri,
-	#	receiver,
-	#	contentType = "application/json",
-	#	bodyProducer = None):
-	#	def onResponse(response):
-	#		finished = Deferred()
-	#		response.deliverBody(response)
-	#		d.addCallback(onResponseBody)
-	#		return d
-	#
-	#	sendHTTP(method, uri, onResponse, contentType, bodyProducer)
 
 http = HTTPQueryRunner()
