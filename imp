@@ -2,7 +2,7 @@
 from fileprogressadapter import FileProgressProducer
 from filedownloadprotocol import FileDownloadProtocol
 from StringIO import StringIO
-from httprequests import http, HTTPQueryRunner
+from httprequests import HTTPQueryRunner
 import routing
 import sys
 import json
@@ -10,9 +10,32 @@ from playlistprint import printPlaylist
 from twisted.web.client import FileBodyProducer
 import re
 import mimetypes
+from os import path
 
+def loadConfigFile(file):
+	f = open(file)
+	res = json.load(f)
+	f.close()
+	return res
+
+def loadConfig():
+	homeConfig = path.expanduser("~/.config/imp")
+
+	if path.exists(homeConfig):
+		return loadConfigFile(homeConfig)
+	else:
+		return {}
+
+config = loadConfig()
+http = HTTPQueryRunner(config)
+
+
+
+
+
+##
+# Main code
 youtube_regex = "^([a-zA-Z0-9_-]+)$|^http://[^/]+youtube\.com/watch\?v=([a-zA-Z0-9_-]+)"
-
 
 def discard(body):
 	pass
