@@ -106,7 +106,7 @@ def leech(idx):
 	def requestMediaForIdx(body):
 		hist = json.loads(body)
 		media = hist[idx]
-		ext = "unknowntype"
+		ext = ".unown"
 
 		if "mimetype" in media["info"]:
 			ext = mimetypes.guess_extension(media["info"]["mimetype"])
