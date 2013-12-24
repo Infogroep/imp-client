@@ -106,13 +106,11 @@ def leech(idx):
 	def requestMediaForIdx(body):
 		hist = json.loads(body)
 		media = hist[idx]
-		ext = ".unown"
+		ext = mimetypes.guess_extension(media["info"]["mimetype"]) if "mimetype" in media["info"] else ".unown"
+		artist = media["info"]["artist"] if "artist" in media["info"] else "Unknown"
+		title = media["info"]["title"] if "title" in media["info"] else "Unknown"
 
-		if "mimetype" in media["info"]:
-			ext = mimetypes.guess_extension(media["info"]["mimetype"])
-		print "using extension %s" % ext
-
-		outfile = open("%s - %s%s" % (media["info"]["artist"],media["info"]["title"],ext), "w")
+		outfile = open("%s - %s%s" % (artist,title,ext), "w")
 		fdl = FileDownloadProtocol(outfile, onProgress)
 		return http.sendWithReceiver("DOWNLOAD","/queue/" + media["id"].encode('latin-1'),fdl)
 
