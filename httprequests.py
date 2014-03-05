@@ -34,12 +34,8 @@ class HTTPQueryRunner:
 		uri,
 		bodyProducer = None,
 		contentType = "application/json"):
-
-		def onResponse(response):
-			return readBody(response)
-
 		responseDeferred = self.send(method, uri, bodyProducer, contentType)
-		responseDeferred.addCallback(onResponse)
+		responseDeferred.addCallback(readBody)
 		return responseDeferred
 
 	def sendWithReceiver(
