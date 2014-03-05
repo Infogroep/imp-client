@@ -82,6 +82,9 @@ def upload_on_response(curfile,files):
 def add_stream(uri):
 	http.reactOn(http.sendSimpleCB("POST", "/stream", discard, FileBodyProducer(StringIO(uri))))
 
+def add_tts(text):
+	http.reactOn(http.sendSimpleCB("POST", "/text_to_speech", discard, FileBodyProducer(StringIO(text))))
+
 # Queue management
 def playlist():
 	http.reactOn(http.sendSimpleCB("GET", "/queue", printPlaylist_resp))
@@ -170,6 +173,8 @@ def routeMain(argv):
 		             [["upload","ul","u","uload"],"..."] )
 	r.add          ( lambda b: add_stream(b["uri"]),
 		             [["stream","str","s"],":uri"] )
+	r.add          ( lambda b: add_tts(b["text"]),
+		             ["tts",":text"] )
 
 	# Favs
 	r.fav          ( lambda b: favorite_add(b["type"],b["name"],b["..."]),
