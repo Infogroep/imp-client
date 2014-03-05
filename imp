@@ -35,7 +35,8 @@ http = HTTPQueryRunner(config)
 
 ##
 # Main code
-youtube_regex = "^([a-zA-Z0-9_-]+)$|^http://[^/]+youtube\.com/watch\?v=([a-zA-Z0-9_-]+)"
+youtube_regex = "^([a-zA-Z0-9_-]+)$|^https?://[^/]*youtube\.com/watch\?v=([a-zA-Z0-9_-]+)"
+soundcloud_regex = "^https?://[^/]*soundcloud.com/[^/]+/[^/]+"
 
 def discard(body):
 	pass
@@ -46,11 +47,14 @@ def printMe(body):
 def printPlaylist_resp(body):
 	printPlaylist(json.loads(body))
 
-# Temp queueing
 def add_youtube(link):
 	m = re.compile(youtube_regex).match(link)
 	vId = m.group(1) or m.group(2)
 	http.reactOn(http.sendSimpleCB("ENQUEUE", "/youtube/video/" + vId, discard))
+
+def add_soundcloud(link):
+	m = re.compile(soundcloud_regex).match(link)
+	http.reactOn(http.sendSimpleCB("ENQUEUE", "/soundcloud/url", discard, FileBodyProducer(StringIO(m.group(0)))))
 
 def add_upload(files):
 	r = upload_files(files)
@@ -167,14 +171,18 @@ def routeMain(argv):
 	                 [["youtube","yt","y","tube"],":link"],
 	                 { "link": youtube_regex } )
 	r.add          ( lambda b: add_upload(b["..."]),
-		             [["upload","ul","u","uload"],"..."] )
+	                 [["upload","ul","u","uload"],"..."] )
 	r.add          ( lambda b: add_stream(b["uri"]),
-		             [["stream","str","s"],":uri"] )
+	                 [["stream","str","s"],":uri"] )
+	r.add          ( lambda b: add_soundcloud(b["link"]),
+		             [["soundcloud","sc","c","cloud"],":link"],
+		             { "link": soundcloud_regex } )
+
 
 	# Favs
 	r.fav          ( lambda b: favorite_add(b["type"],b["name"],b["..."]),
-					 ["add",":type",":name","..."],
-					 { "type": "stream|youtube" } )
+	                 ["add",":type",":name","..."],
+	                 { "type": "stream|youtube" } )
 
 	# Current
 	r.skip         ( lambda b: next() )
