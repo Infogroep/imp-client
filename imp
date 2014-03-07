@@ -8,6 +8,7 @@ import sys
 import json
 from playlistprint import printPlaylist
 from twisted.web.client import FileBodyProducer
+from twisted.internet.defer import Deferred
 import re
 import mimetypes
 from os import path
@@ -30,13 +31,23 @@ config = loadConfig()
 http = HTTPQueryRunner(config)
 
 
+def parseQueryString(strn):
+	res = {}
+	rex = re.compile("^(.+?)=(.*)$")
 
+	for sstr in strn.split('&'):
+		print sstr
+		k,v = rex.match(sstr).groups()
+		res[k] = v
+
+	print res
+	return res
 
 
 ##
 # Main code
-youtube_regex = "^([a-zA-Z0-9_-]+)$|^https?://[^/]*youtube\.com/watch\?v=([a-zA-Z0-9_-]+)"
 soundcloud_regex = "^https?://[^/]*soundcloud.com/[^/]+/[^/]+"
+youtube_regex = "^([a-zA-Z0-9_-]+)$|^https?://[^/]+youtube\.com/watch\?([^#]+)"
 
 def discard(body):
 	pass
@@ -47,10 +58,30 @@ def printMe(body):
 def printPlaylist_resp(body):
 	printPlaylist(json.loads(body))
 
+def add_youtube_v(vId):
+	return http.sendSimpleCB("ENQUEUE", "/youtube/video/" + vId, discard)
+
+def add_youtube_pl(plId):
+	return http.sendSimpleCB("ENQUEUE", "/youtube/playlist/" + plId, discard)
+
 def add_youtube(link):
 	m = re.compile(youtube_regex).match(link)
-	vId = m.group(1) or m.group(2)
-	http.reactOn(http.sendSimpleCB("ENQUEUE", "/youtube/video/" + vId, discard))
+	if m.group(1):
+		http.reactOn(add_youtube_v(m.group(1)))
+	else:
+		qs = parseQueryString(m.group(2))
+		vId, plId = [qs["v"], qs["list"]]
+
+		d = Deferred()
+		if vId:
+			print "Found video ID: %s" % vId
+			d.addCallback(lambda b: add_youtube_v(vId))
+		if plId:
+			print "Found playlist ID: %s" % plId
+			d.addCallback(lambda b: add_youtube_pl(plId))
+		d.callback(0)
+		http.reactOn(d)
+
 
 def add_soundcloud(link):
 	m = re.compile(soundcloud_regex).match(link)
