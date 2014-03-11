@@ -36,11 +36,9 @@ def parseQueryString(strn):
 	rex = re.compile("^(.+?)=(.*)$")
 
 	for sstr in strn.split('&'):
-		print sstr
 		k,v = rex.match(sstr).groups()
 		res[k] = v
 
-	print res
 	return res
 
 
@@ -70,14 +68,12 @@ def add_youtube(link):
 		http.reactOn(add_youtube_v(m.group(1)))
 	else:
 		qs = parseQueryString(m.group(2))
-		vId, plId = [qs["v"], qs["list"]]
+		vId, plId = [qs.get("v"), qs.get("list")]
 
 		d = Deferred()
 		if vId:
-			print "Found video ID: %s" % vId
 			d.addCallback(lambda b: add_youtube_v(vId))
 		if plId:
-			print "Found playlist ID: %s" % plId
 			d.addCallback(lambda b: add_youtube_pl(plId))
 		d.callback(0)
 		http.reactOn(d)
@@ -163,6 +159,15 @@ def leech(idx):
 	d.addCallback(printDone)
 	http.reactOn(d)
 
+def magic_shuffle(idx):
+	def requestMediaForIdx(body):
+		queue = json.loads(body)
+		media = queue[idx]
+		return http.sendSimpleCB("MAGIC_SHUFFLE", "/queue/%s" % media["id"].encode('latin-1'), discard)
+
+	http.reactOn(http.sendSimpleCB("GET", "/queue", requestMediaForIdx))
+
+
 # Current
 def next():
 	http.reactOn(http.sendSimpleCB("NEXT", "/control/current", printMe))
@@ -217,6 +222,8 @@ def routeMain(argv):
 	r.hl           ( lambda b: history_raw() )
 	r.leech        ( lambda b: leech(int(b["idx"])),
 	                 [":idx"] )
+	r.magic        ( lambda b: magic_shuffle(int(b["idx"])),
+		             [":idx"] )
 
 	# Enqueueing
 	r.add          ( lambda b: add_youtube(b["link"]),
@@ -248,6 +255,7 @@ def routeMain(argv):
 	# Current
 	r.skip         ( lambda b: next() )
 	r.next         ( lambda b: next() )
+	r.prev         ( lambda b: prev() )
 	r.previous     ( lambda b: previous() )
 	r.pause        ( lambda b: pause() )
 	r.stop         ( lambda b: stop() )
