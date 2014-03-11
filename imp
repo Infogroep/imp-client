@@ -120,6 +120,9 @@ def add_stream(uri):
 def add_tts(text):
 	http.reactOn(http.sendSimpleCB("POST", "/text_to_speech", discard, FileBodyProducer(StringIO(text))))
 
+def add_fav(keyword):
+	http.reactOn(http.sendSimpleCB("ENQUEUE", "/favorites/%s" % keyword, discard))
+
 # Queue management
 def playlist():
 	http.reactOn(http.sendSimpleCB("GET", "/queue", printPlaylist_resp))
@@ -173,11 +176,27 @@ def replay():
 	http.reactOn(http.sendSimpleCB("REPLAY", "/control/current", printMe))
 
 # Favs
-def favorite_add(type,name,rest):
+def print_favs(body):
+	for fav in json.loads(body):
+		print "%d: %s -- %s -- %s -- %s -- %s" % (fav["id"], ",".join(fav["keywords"]), fav["name"], fav["plugin"], fav["user"], ",".join(fav["options"]))
+
+def favorites_list():
+	http.reactOn(http.sendSimpleCB("GET", "/favorites", print_favs))
+
+def favorites_add(plugin,name,rest):
 	http.reactOn(http.sendSimpleCB("POST", "/favorites", discard, FileBodyProducer(StringIO(json.dumps({
-		"type": type,
+		"plugin": plugin,
 		"name": name,
+		"is_public": True,
 		"options": rest
+	})))))
+
+def favorites_remove(fav):
+	http.reactOn(http.sendSimpleCB("DELETE", "/favorites/%s" % fav, discard))
+
+def favorites_setkeywords(fav,keywords):
+	http.reactOn(http.sendSimpleCB("PATCH", "/favorites/%s" % fav, discard, FileBodyProducer(StringIO(json.dumps({
+		"keywords": keywords
 	})))))
 
 # Volume
@@ -186,7 +205,6 @@ def volume_get():
 
 def volume_set(volume):
 	http.reactOn(http.sendSimpleCB("PUT", "/control/volume", discard, FileBodyProducer(StringIO(str(volume)))))
-
 
 
 def routeMain(argv):
@@ -209,15 +227,23 @@ def routeMain(argv):
 	r.add          ( lambda b: add_stream(b["uri"]),
 	                 [["stream","str","s"],":uri"] )
 	r.add          ( lambda b: add_soundcloud(b["link"]),
-		             [["soundcloud","sc","c","cloud"],":link"],
-		             { "link": soundcloud_regex } )
+	                 [["soundcloud","sc","c","cloud"],":link"],
+	                 { "link": soundcloud_regex } )
 	r.add          ( lambda b: add_tts(b["text"]),
-		             ["tts",":text"] )
+	                 ["tts",":text"] )
+	r.add          ( lambda b: add_fav(b["keyword"]),
+	                 ["fav",":keyword"] )
 
 	# Favs
-	r.fav          ( lambda b: favorite_add(b["type"],b["name"],b["..."]),
-	                 ["add",":type",":name","..."],
-	                 { "type": "stream|youtube" } )
+	r.fav          ( lambda b: favorites_list(),
+	                 ["list"] )
+	r.fav          ( lambda b: favorites_add(b["plugin"],b["name"],b["..."]),
+	                 ["add",":plugin",":name","..."],
+	                 { "plugin": "stream" } )
+	r.fav          ( lambda b: favorites_remove(b["id"]),
+	                 ["remove",":id"] )
+	r.fav          ( lambda b: favorites_setkeywords(b["id"],b["..."]),
+	                 ["keywords",":id","..."] )
 
 	# Current
 	r.skip         ( lambda b: next() )
