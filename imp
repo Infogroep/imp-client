@@ -255,7 +255,7 @@ def routeMain(argv):
 	# Current
 	r.skip         ( lambda b: next() )
 	r.next         ( lambda b: next() )
-	r.prev         ( lambda b: prev() )
+	r.prev         ( lambda b: previous() )
 	r.previous     ( lambda b: previous() )
 	r.pause        ( lambda b: pause() )
 	r.stop         ( lambda b: stop() )
