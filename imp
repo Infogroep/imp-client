@@ -152,7 +152,7 @@ def leech(idx):
 		return http.sendWithReceiver("DOWNLOAD","/queue/" + media["id"].encode('latin-1'),fdl)
 
 	def printDone(ignore):
-		sys.stdout.write("Downloading... done.                        \n")
+		sys.stdout.write("Downloading... done.			      \n")
 		sys.stdout.flush()
 
 	d = http.sendSimpleCB("GET", "/history", requestMediaForIdx)
@@ -167,6 +167,13 @@ def magic_shuffle(idx):
 
 	http.reactOn(http.sendSimpleCB("GET", "/queue", requestMediaForIdx))
 
+def dequeue(idx):
+	def requestMediaForIdx(body):
+		queue = json.loads(body)
+		media = queue[idx]
+		return http.sendSimpleCB("DELETE", "/queue/" + media["id"].encode('latin-1'), discard)
+
+	http.reactOn(http.sendSimpleCB("GET", "/queue", requestMediaForIdx))
 
 # Current
 def next():
@@ -215,15 +222,17 @@ def volume_set(volume):
 def routeMain(argv):
 	r = routing.Router(argv)
 	# Queue management
-	r.match        ( lambda b: playlist(), [] )
-	r.pl           ( lambda b: playlist_raw() )
-	r.flush        ( lambda b: flush() )
+	r.match	       ( lambda b: playlist(), [] )
+	r.pl	       ( lambda b: playlist_raw() )
+	r.flush	       ( lambda b: flush() )
 	r.history      ( lambda b: history() )
-	r.hl           ( lambda b: history_raw() )
-	r.leech        ( lambda b: leech(int(b["idx"])),
-	                 [":idx"] )
-	r.magic        ( lambda b: magic_shuffle(int(b["idx"])),
-		             [":idx"] )
+	r.hl	       ( lambda b: history_raw() )
+	r.leech	       ( lambda b: leech(int(b["idx"])),
+			 [":idx"] )
+	r.magic	       ( lambda b: magic_shuffle(int(b["idx"])),
+			     [":idx"] )
+	r.rem	       ( lambda b: dequeue(int(b["idx"])),
+	                     [":idx"] )
 
 	# Enqueueing
 	r.add          ( lambda b: add_youtube(b["link"]),
