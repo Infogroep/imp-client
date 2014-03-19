@@ -20,6 +20,28 @@ Installation on Linux Debian
 ----------------------------
 Run install-deps
 
+Installation on Windows (8)
+---------------------------
+* Check out the imp-client and do the command as described above.
+* Use pip (or easy_install) to install twisted:
+    `pip install twisted`
+    or
+    `easy_install twisted`
+* If the installation of twisted gives problem due to missing modules, install those first, or get them from: `http://www.lfd.uci.edu/~gohlke/pythonlibs/`
+* Run imp-client by going to imp-client folder through command line and run:
+    `python imp`
+Note: The Python directory has to be added to the environment variable `PATH`.
+* In order to run the imp-client by just typing `ìmp` from anywhere in the commandline following the instructions on this link: `http://stackoverflow.com/questions/4621255/how-do-i-run-a-python-program-in-the-command-prompt-in-windows-7`
+or use follow these steps:
+
+    1) Add .PY and .PYC to the environment variable `PATHEXT`. 
+    
+    2) Add the folder location of the imp-client to the environment variable `PATH`.
+    
+    3) If you have any command prompts open, close them and start command prompt again.
+    
+    4) Type: `imp`.
+
 Installation on other systems
 -----------------------------
 * Install python2.7 and its development headers.
