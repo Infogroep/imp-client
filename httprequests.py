@@ -12,7 +12,7 @@ class HTTPQueryRunner:
 		self.agent = Agent(reactor, pool=self.pool)
 
 		host = config["host"].encode('latin-1') if "host" in config else "mpgx.rave.org"
-		port = config["port"] if "port" in config else 8080
+		port = config["port"] if "port" in config else 8085
 
 		self.rootUri = "http://%s:%d" % (host, port)
 
